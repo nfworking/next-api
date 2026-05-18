@@ -1,144 +1,76 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import Link from "next/link"
+import { ArrowRight, HardDrive, Server, Sparkles } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-
-import Card, {
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card"
+import Card, { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function Home() {
-  const [nodes, setNodes] = useState<any[]>([])
-  const [lxcs, setLxcs] = useState<any[]>([])
-
-  async function fetchLXC() {
-    try {
-      const res = await fetch("/api/proxmox/lxc")
-      const data = await res.json()
-      setLxcs(data?.data ?? [])
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  async function fetchNodes() {
-    try {
-      const res = await fetch("/api/proxmox/nodes")
-      const data = await res.json()
-      setNodes(data?.data ?? [])
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  useEffect(() => {
-    fetchNodes()
-    fetchLXC()
-
-    const interval = setInterval(() => {
-      fetchNodes()
-      fetchLXC()
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
-
   return (
-    <div className="flex min-h-svh flex-col items-center p-6">
-      <div className="flex max-w-4xl w-full flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium text-center text-4xl">Homelab Dashboard with API implementation</h1>
+    <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <section className="rounded-3xl border border-border/60 bg-linear-to-br from-background to-muted/30 p-6 shadow-sm">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground">
+          <Sparkles className="size-3.5" />
+          Overview
         </div>
 
-        <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {nodes.length === 0 ? (
-            <div className="col-span-full text-center text-muted-foreground">No nodes found</div>
-          ) : (
-            nodes.map((node: any) => {
-              const uptime = Number(node.uptime ?? 0)
+        <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Homelab dashboard</h1>
 
-              const days = Math.floor(uptime / 86400)
-              const remainingAfterDays = uptime % 86400
-              const hours = Math.floor(remainingAfterDays / 3600)
-              const remainingAfterHours = remainingAfterDays % 3600
-              const minutes = Math.floor(remainingAfterHours / 60)
-              const formattedUptime = `${days}d ${hours}h ${minutes}m`
-              const isOnline = node.status === "online"
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
+          Use the sidebar tabs to open the Nodes and Containers pages. This overview page stays light and acts as your landing page.
+        </p>
 
-              return (
-                <Card key={node.node ?? node.id} className="w-70 h-50 justify-center gap-4px border-4 transition-all duration-300  hover:border-cyan-400 hover:shadow-cyan-500/20 hover:shadow-lg
-  hover:-translate-y-1">
-                  <CardHeader>
-                    <div className="flex justify-between">
-                    <CardTitle >
-                      {node.node ?? "Unnamed node"}
-                    </CardTitle>
-                    <CardTitle className={isOnline ? "text-green-500" : "text-red-500" }>
-                      {node.status ?? "Unknown status"} 
-                    </CardTitle>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">Type: {node.type ?? "—"}</p>
-                    <p className="text-sm text-muted-foreground">Uptime: {formattedUptime}</p>
-                  </CardContent>
-
-                  <CardFooter>
-                    <Button size="sm">Open</Button>
-                  </CardFooter>
-                </Card>
-              )
-            })
-          )}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/nodes">
+              View nodes
+              <ArrowRight className="ml-2 size-4" />
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/lxc">View containers</Link>
+          </Button>
         </div>
-        <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {lxcs.length === 0 ? (
-            <div className="col-span-full text-center text-muted-foreground">No LXC containers found</div>
-          ) : (
-            lxcs.map((lxc: any) => {
-                const isOnline = lxc.status === "runnning"
-                const uptime = Number(lxc.uptime ?? 0)
+      </section>
 
-              const days = Math.floor(uptime / 86400)
-              const remainingAfterDays = uptime % 86400
-              const hours = Math.floor(remainingAfterDays / 3600)
-              const remainingAfterHours = remainingAfterDays % 3600
-              const minutes = Math.floor(remainingAfterHours / 60)
-              const formattedUptime = `${days}d ${hours}h ${minutes}m`
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Server className="size-4" />
+              Nodes
+            </CardTitle>
+            <CardDescription>Dedicated page for Proxmox nodes.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Add node-level details or keep this as a summary tile.
+          </CardContent>
+          <CardFooter>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/nodes">Open nodes</Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-              return (
-                <Card key={lxc.name ?? lxc.id} className="w-70 h-50 justify-center gap-4px border-4 transition-all duration-300  hover:border-cyan-400 hover:shadow-cyan-500/20 hover:shadow-lg
-  hover:-translate-y-1">
-                  <CardHeader>
-                      <div className="flex justify-between">
-                    <CardTitle>
-                      {lxc.name ?? "Unnamed container"}
-                    </CardTitle>
-                   
-                    <CardTitle className={isOnline ? "text-green-500" : "text-red-500" }>
-                      {lxc.status ?? "Unknown status"} 
-                    </CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>                    
-                    <p className="text-sm text-muted-foreground">Type: {lxc.type ?? "—"}</p>
-                    <p className="text-sm text-muted-foreground">Uptime: {formattedUptime}</p>
-                  </CardContent>
-                  <CardFooter>
-                    <Button size="sm">Open</Button>
-                  </CardFooter>
-                </Card>
-              )
-            })
-          )}
-        </div>
-      </div>
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HardDrive className="size-4" />
+              Containers
+            </CardTitle>
+            <CardDescription>Dedicated page for LXC containers.</CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            This is where the container cards now live instead of the sidebar.
+          </CardContent>
+          <CardFooter>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/lxc">Open containers</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </section>
     </div>
-  )}
-      
+  )
+}
