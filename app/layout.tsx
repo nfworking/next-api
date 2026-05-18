@@ -14,6 +14,11 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata = {
+  title: "Homelab Dashboard",
+  description: "Dashboard for monitoring and managing my homelab infrastructure",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

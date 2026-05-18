@@ -1,76 +1,156 @@
 "use client"
 
-import Link from "next/link"
-import { ArrowRight, HardDrive, Server, Sparkles } from "lucide-react"
+import { useEffect, useState } from "react"
 
-import { Button } from "@/components/ui/button"
-import Card, { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import Card, { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+type ProxmoxApiResponse<T> = {
+  data?: T[]
+}
+
+type NodeInfo = {
+  node?: string
+  status?: string
+  uptime?: number
+}
+
+type LxcInfo = {
+  vmid?: number
+  name?: string
+  node?: string
+  status?: string
+  uptime?: number
+}
+
+function formatUptime(totalSeconds: number) {
+  const seconds = Math.max(0, Number(totalSeconds) || 0)
+  const days = Math.floor(seconds / 86400)
+  const hours = Math.floor((seconds % 86400) / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  return `${days}d ${hours}h ${minutes}m`
+}
 
 export default function Home() {
+  const [nodes, setNodes] = useState<NodeInfo[]>([])
+  const [lxcs, setLxcs] = useState<LxcInfo[]>([])
+  const [lastUpdated, setLastUpdated] = useState<string>("")
+
+  useEffect(() => {
+    let active = true
+
+    async function refreshDashboard() {
+      try {
+        const [nodesRes, lxcRes] = await Promise.all([
+          fetch("/api/proxmox/nodes", { cache: "no-store" }),
+          fetch("/api/proxmox/lxc", { cache: "no-store" }),
+        ])
+
+        const nodesJson = (await nodesRes.json()) as ProxmoxApiResponse<NodeInfo>
+        const lxcJson = (await lxcRes.json()) as ProxmoxApiResponse<LxcInfo>
+
+        if (!active) return
+
+        setNodes(nodesJson.data ?? [])
+        setLxcs(lxcJson.data ?? [])
+        setLastUpdated(new Date().toLocaleTimeString())
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    // Poll both APIs every 5 seconds and run once on first render.
+    const initialLoad = window.setTimeout(() => {
+      void refreshDashboard()
+    }, 0)
+    const interval = window.setInterval(() => {
+      void refreshDashboard()
+    }, 5000)
+
+    return () => {
+      active = false
+      window.clearTimeout(initialLoad)
+      window.clearInterval(interval)
+    }
+  }, [])
+
+  const maxUptime = Math.max(1, ...nodes.map((node) => Number(node.uptime ?? 0)))
+
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-      <section className="rounded-3xl border border-border/60 bg-linear-to-br from-background to-muted/30 p-6 shadow-sm">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground">
-          <Sparkles className="size-3.5" />
-          Overview
-        </div>
+    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 md:p-6">
+      <header className="pt-2 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Homelab Dashboard</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Live view of Proxmox nodes and LXC containers</p>
+        <p className="mt-1 text-xs text-muted-foreground">Updates every 5 seconds{lastUpdated ? ` • Last updated ${lastUpdated}` : ""}</p>
+      </header>
 
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">Homelab dashboard</h1>
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader>
+          <CardTitle>Node Uptime Graph</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {nodes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No node data available.</p>
+          ) : (
+            nodes.map((node) => {
+              const uptime = Number(node.uptime ?? 0)
+              // Relative width gives a simple graph without extra chart dependencies.
+              const width = Math.max(4, Math.round((uptime / maxUptime) * 100))
 
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-          Use the sidebar tabs to open the Nodes and Containers pages. This overview page stays light and acts as your landing page.
-        </p>
+              return (
+                <div key={node.node ?? `node-${uptime}`} className="space-y-1">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="font-medium">{node.node ?? "Unknown node"}</span>
+                    <span className="text-muted-foreground">{formatUptime(uptime)}</span>
+                  </div>
+                  <div className="h-3 w-full rounded-full bg-muted">
+                    <div className="h-3 rounded-full bg-primary transition-all duration-500" style={{ width: `${width}%` }} />
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href="/nodes">
-              View nodes
-              <ArrowRight className="ml-2 size-4" />
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/lxc">View containers</Link>
-          </Button>
-        </div>
-      </section>
-
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Server className="size-4" />
-              Nodes
-            </CardTitle>
-            <CardDescription>Dedicated page for Proxmox nodes.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Add node-level details or keep this as a summary tile.
-          </CardContent>
-          <CardFooter>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/nodes">Open nodes</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="size-4" />
-              Containers
-            </CardTitle>
-            <CardDescription>Dedicated page for LXC containers.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            This is where the container cards now live instead of the sidebar.
-          </CardContent>
-          <CardFooter>
-            <Button size="sm" variant="outline" asChild>
-              <Link href="/lxc">Open containers</Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      </section>
-    </div>
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader>
+          <CardTitle>LXC Containers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="border-b border-border">
+                <tr className="text-muted-foreground">
+                  <th className="py-2 pr-4 font-medium">Name</th>
+                  <th className="py-2 pr-4 font-medium">VMID</th>
+                  <th className="py-2 pr-4 font-medium">Node</th>
+                  <th className="py-2 pr-4 font-medium">Status</th>
+                  <th className="py-2 font-medium">Uptime</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lxcs.length === 0 ? (
+                  <tr>
+                    <td className="py-3 text-muted-foreground" colSpan={5}>
+                      No container data available.
+                    </td>
+                  </tr>
+                ) : (
+                  lxcs.map((lxc) => (
+                    <tr key={lxc.vmid ?? lxc.name} className="border-b border-border/60">
+                      <td className="py-3 pr-4">{lxc.name ?? "Unnamed"}</td>
+                      <td className="py-3 pr-4">{lxc.vmid ?? "—"}</td>
+                      <td className="py-3 pr-4">{lxc.node ?? "—"}</td>
+                      <td className="py-3 pr-4">{lxc.status ?? "unknown"}</td>
+                      <td className="py-3">{formatUptime(Number(lxc.uptime ?? 0))}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
   )
 }
