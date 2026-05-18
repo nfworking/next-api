@@ -102,7 +102,7 @@ export default function Home() {
             <div className="col-span-full text-center text-muted-foreground">No LXC containers found</div>
           ) : (
             lxcs.map((lxc: any) => {
-                const isOnline = lxc.status === "running"
+                const isOnline = lxc.status === "runnning"
                 const uptime = Number(lxc.uptime ?? 0)
 
               const days = Math.floor(uptime / 86400)
